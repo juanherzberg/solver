@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAT Reading · Breakdown Generator</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Georgia', serif; background: #f4f1ec; color: #1a1a1a; min-height: 100vh; }
+
+    header { background: #1a1a2e; color: #fff; padding: 14px 28px; }
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.03em; }
+    header p  { font-size: 0.77rem; color: #ffffffaa; margin-top: 2px; }
+
+    .container { max-width: 820px; margin: 0 auto; padding: 32px 28px 60px; }
+
+    /* Setup overlay */
+    .setup-overlay {
+      background: #fff8e6; border: 1.5px solid #e8a838; border-radius: 8px;
+      padding: 18px 20px; margin-bottom: 24px; font-size: 0.88rem; line-height: 1.6;
+    }
+    .setup-overlay strong { color: #7a5500; display: block; margin-bottom: 6px; font-size: 0.9rem; }
+    .setup-overlay .key-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .setup-overlay input {
+      font-family: 'Georgia', serif; font-size: 0.88rem; padding: 7px 12px;
+      border-radius: 5px; border: 1.5px solid #d5cfc4; background: #fff;
+      color: #1a1a1a; flex: 1; min-width: 200px; outline: none;
+    }
+    .setup-overlay input:focus { border-color: #9b6dd6; }
+    .setup-overlay button {
+      background: #1a1a2e; color: #fff; border: none; padding: 7px 18px;
+      border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 0.88rem;
+      transition: background 0.15s; white-space: nowrap;
+    }
+    .setup-overlay button:hover { background: #2e2e55; }
+
+    .panel-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 10px; }
+
+    textarea {
+      width: 100%; height: 230px; font-family: 'Georgia', serif; font-size: 0.91rem;
+      line-height: 1.65; padding: 14px 16px; border: 1.5px solid #d5cfc4; border-radius: 6px;
+      background: #fff; color: #1a1a1a; resize: vertical; outline: none; transition: border-color 0.15s;
+    }
+    textarea:focus { border-color: #9b6dd6; }
+    textarea::placeholder { color: #bbb; font-style: italic; }
+
+    .btn-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .generate-btn {
+      background: #1a1a2e; color: #fff; border: none; padding: 11px 26px; border-radius: 6px;
+      font-size: 0.92rem; font-family: inherit; cursor: pointer; letter-spacing: 0.02em; transition: background 0.15s;
+    }
+    .generate-btn:hover { background: #2e2e55; }
+    .generate-btn:disabled { opacity: 0.45; cursor: default; }
+    .shortcut-hint { font-size: 0.75rem; color: #aaa; font-style: italic; }
+
+    .loading { display: none; margin-top: 22px; color: #888; font-size: 0.88rem; font-style: italic; align-items: center; gap: 10px; }
+    .loading.active { display: flex; }
+    .spinner { width: 15px; height: 15px; border: 2px solid #d5cfc4; border-top-color: #9b6dd6; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box { display: none; margin-top: 20px; background: #fde8e8; border: 1.5px solid #d9534f; border-radius: 8px; padding: 13px 16px; font-size: 0.87rem; line-height: 1.6; color: #8b2020; }
+    .error-box.active { display: block; }
+
+    .output { display: none; margin-top: 32px; }
+    .output.active { display: block; }
+
+    .divider { border: none; border-top: 1.5px solid #d5cfc4; margin: 0 0 26px; }
+
+    .badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 22px; }
+    .badge { font-size: 0.71rem; padding: 3px 10px; border-radius: 12px; font-weight: 700; letter-spacing: 0.04em; }
+    .badge-type    { background: #9b6dd6; color: #fff; }
+    .badge-subtype { background: #e6e4f0; color: #444; }
+
+    .choices-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 10px; }
+    .choices { list-style: none; margin-bottom: 16px; }
+    .choices li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 6px; margin-bottom: 7px;
+      border: 1.5px solid transparent; font-size: 0.93rem; line-height: 1.5;
+      background: #fff; transition: background 0.12s;
+    }
+    .choices li.correct   { background: #d4edda; border-color: #5aab6e; }
+    .choices li.incorrect { background: #fde8e8; border-color: #d9534f; opacity: 0.6; }
+    .choice-letter { font-weight: 700; min-width: 20px; flex-shrink: 0; }
+
+    .action-row { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+    .reveal-btn {
+      background: #1a1a2e; color: #fff; border: none; padding: 9px 20px;
+      border-radius: 5px; cursor: pointer; font-size: 0.88rem; font-family: inherit; transition: background 0.15s;
+    }
+    .reveal-btn:hover { background: #2e2e55; }
+    .breakdown-toggle {
+      background: transparent; border: 1.5px solid #9b6dd6; color: #9b6dd6;
+      border-radius: 5px; padding: 8px 16px; font-family: inherit; font-size: 0.85rem;
+      font-weight: 700; cursor: pointer; letter-spacing: 0.01em; transition: background 0.12s, color 0.12s;
+    }
+    .breakdown-toggle:hover { background: #9b6dd6; color: #fff; }
+
+    .breakdown-area { display: none; padding-top: 4px; }
+    .breakdown-area.active { display: block; }
+
+    .sections { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+    .section-card { border-radius: 8px; padding: 15px 18px; border-left: 5px solid; }
+    .section-card .section-number { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; opacity: 0.6; margin-bottom: 4px; }
+    .section-card .section-name   { font-size: 0.94rem; font-weight: 700; margin-bottom: 6px; }
+    .section-card .section-desc   { font-size: 0.87rem; line-height: 1.62; opacity: 0.9; }
+    .section-card .section-quote  { font-size: 0.81rem; font-style: italic; margin-top: 8px; opacity: 0.68; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 7px; }
+
+    .s1-card { background: #eaf3ff; border-left-color: #4a90d9; }
+    .s2-card { background: #e8f7ec; border-left-color: #5aab6e; }
+    .s3-card { background: #fff3dc; border-left-color: #e8a838; }
+
+    .tip-box { background: #fff8e6; border: 1.5px solid #e8a838; border-radius: 8px; padding: 14px 16px; font-size: 0.86rem; line-height: 1.62; margin-bottom: 20px; }
+    .tip-box .tip-label { font-size: 0.67rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #b07d10; margin-bottom: 5px; }
+
+    .reset-btn {
+      background: transparent; border: 1.5px solid #aaa; color: #666; border-radius: 5px;
+      padding: 8px 16px; font-family: inherit; font-size: 0.84rem; font-weight: 700;
+      cursor: pointer; transition: border-color 0.12s, color 0.12s;
+    }
+    .reset-btn:hover { border-color: #1a1a2e; color: #1a1a2e; }
+
+    .settings-link { display: block; text-align: center; margin-top: 48px; font-size: 0.7rem; color: #ccc; cursor: pointer; letter-spacing: 0.03em; user-select: none; }
+    .settings-link:hover { color: #999; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>SAT Reading · Breakdown Generator</h1>
+  <p>Paste any question to identify its type, reveal the correct answer, and get a step-by-step breakdown</p>
+</header>
+
+<div class="container">
+
+  <div class="setup-overlay" id="setupOverlay">
+    <strong>⚙ One-time setup</strong>
+    Enter your Anthropic API key. It will be saved to this browser — students will never see this again.
+    Get a key at <a href="https://console.anthropic.com/" target="_blank" style="color:#7a5500;">console.anthropic.com</a>.
+    <div class="key-row">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-…" autocomplete="off" />
+      <button onclick="saveKey()">Save Key</button>
+    </div>
+  </div>
+
+  <div class="panel-label">Paste your question</div>
+  <textarea id="questionInput" placeholder="Paste the passage, question stem, and answer choices here…
+
+Example:
+Yawn contagion occurs when one individual yawns in response to another's yawn. Studies of this behavior in primates have focused on populations in captivity, but biologist Elisabetta Palagi and her colleagues have shown that it can occur in wild primate populations as well.
+
+Which choice best describes the function of the first sentence in the text as a whole?
+A) It defines a phenomenon that is discussed in the text.
+B) It introduces a problem that is examined in the text.
+C) It makes a claim that is challenged in the text.
+D) It presents a hypothesis that is evaluated in the text."></textarea>
+
+  <div class="btn-row">
+    <button class="generate-btn" id="generateBtn" onclick="generateBreakdown()">Generate Breakdown →</button>
+    <span class="shortcut-hint">or press ⌘↵ / Ctrl↵</span>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <span>Analyzing question…</span>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="output" id="output">
+    <hr class="divider" />
+    <div class="badge-row">
+      <span class="badge badge-type" id="typeLabel"></span>
+      <span class="badge badge-subtype" id="subTypeLabel"></span>
+    </div>
+    <div class="choices-label">Answer Choices</div>
+    <ul class="choices" id="choicesList"></ul>
+    <div class="action-row">
+      <button class="reveal-btn" id="revealBtn" onclick="revealAnswer()">Reveal Answer</button>
+      <button class="breakdown-toggle" id="breakdownBtn" onclick="toggleBreakdown()">Show Breakdown ▼</button>
+    </div>
+    <div class="breakdown-area" id="breakdownArea">
+      <div class="sections" id="sectionsContainer"></div>
+      <div class="tip-box">
+        <div class="tip-label">💡 The Key Move</div>
+        <div id="tipContent"></div>
+      </div>
+    </div>
+    <button class="reset-btn" onclick="resetTool()">← Analyze another question</button>
+  </div>
+
+  <span class="settings-link" onclick="showSettings()">· · ·</span>
+
+</div>
+
+<script>
+var currentData  = null;
+var parsedChoices = [];
+var answered     = false;
+var breakdownOpen = false;
+
+// ── API key ───────────────────────────────────────────────────────────────────
+function saveKey() {
+  var k = document.getElementById('apiKeyInput').value.trim();
+  if (!k) return;
+  localStorage.setItem('anthropic_api_key', k);
+  document.getElementById('apiKeyInput').value = '';
+  updateSetupVisibility();
+}
+function updateSetupVisibility() {
+  document.getElementById('setupOverlay').style.display =
+    localStorage.getItem('anthropic_api_key') ? 'none' : 'block';
+}
+function showSettings() {
+  document.getElementById('setupOverlay').style.display = 'block';
+  document.getElementById('apiKeyInput').focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+updateSetupVisibility();
+
+// ── Parse choices from pasted text ───────────────────────────────────────────
+// Matches lines like: A) text  or  A. text  or  (A) text
+function parseChoicesFromText(text) {
+  var results = [];
+  var pattern = /^\s*[\(\[]?([A-D])[\)\]\.]\s*(.+)/;
+  var lines = text.split('\n');
+  var current = null;
+  lines.forEach(function(line) {
+    var m = line.match(pattern);
+    if (m) {
+      if (current) results.push(current);
+      current = { letter: m[1], text: m[2].trim() };
+    } else if (current && line.trim()) {
+      // continuation of previous choice
+      current.text += ' ' + line.trim();
+    }
+  });
+  if (current) results.push(current);
+  return results;
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function generateBreakdown() {
+  var apiKey   = localStorage.getItem('anthropic_api_key');
+  var question = document.getElementById('questionInput').value.trim();
+
+  if (!apiKey) { showSettings(); return; }
+  if (!question) return;
+
+  // Parse choices client-side — no need for the AI to return them
+  parsedChoices = parseChoicesFromText(question);
+
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('output').classList.remove('active');
+  document.getElementById('errorBox').classList.remove('active');
+  answered = false; breakdownOpen = false;
+
+  var SYSTEM = 'You are an expert SAT reading tutor. Return ONLY a valid JSON object with no markdown, no code fences, no text outside the JSON braces. All string values must use straight double-quote characters. Do not use apostrophes — rephrase to avoid them.';
+
+  var USER = [
+    'Analyze this SAT reading question. Return ONLY a JSON object — no markdown fences, no extra text.',
+    'IMPORTANT: Do not use apostrophes in any string value. Rephrase to avoid them.',
+    '',
+    '=== CLASSIFY THE QUESTION TYPE (pick exactly one) ===',
+    '"Text Structure & Purpose" — stem asks about function of underlined/first/second sentence, main purpose of the text, or overall structure',
+    '"Command of Evidence" — stem asks which data/finding supports a conclusion, or to complete a blank using evidence from a graph/table',
+    '"Inference" — stem says most logically completes the text with a blank, no data table',
+    '"Central Ideas & Details" — stem asks about central idea, main idea, what the text is primarily about',
+    '"Cross-Text Connections" — passage contains Text 1 and Text 2',
+    '',
+    '=== IDENTIFY THE CORRECT ANSWER ===',
+    'Read the passage and choices carefully. Determine which choice (A, B, C, or D) is correct.',
+    '',
+    '=== GENERATE THE BREAKDOWN ===',
+    '',
+    'TEXT STRUCTURE & PURPOSE:',
+    'Step 1 (Setup) — Map the passage structure neutrally. What does each part establish? No spoilers.',
+    'Step 2 (The Function) — What job does the target element do? Signal words: "For example" = illustrates prior claim; "However/but/though" = contrast; transition phrases = elaborates a named shift; dashes = qualifies what came before; "One such X" = example of just-named category; opening definition sentence = defines a phenomenon.',
+    'Step 3 (Wrong Answer Traps) — The top trap: right verb, wrong noun. Which wrong answers use a good verb but wrong noun?',
+    'Tip — Focus on verb and noun. Show which noun in the correct answer maps exactly to the passage.',
+    '',
+    'COMMAND OF EVIDENCE:',
+    'Step 1 (Setup) — What is the passage or chart measuring?',
+    'Step 2 (Decode the Last Sentence) — The last sentence contains the exact constraint. Break it word by word: "majority" = exceeds 50% everywhere; "growing" = upward trend across all periods; "more X" = a specific category. This anchors all answers.',
+    'Step 3 (Verify) — Why does the correct answer satisfy every condition? Where does each wrong answer fail?',
+    'Tip — Quote the constraining words from the conclusion and map them to the correct answer.',
+    '',
+    'INFERENCE:',
+    'Step 1 (Map the Logic) — Walk through each sentence. What does each one establish?',
+    'Step 2 (Locate the Blank) — Where in the logical chain is the blank? What completes the reasoning?',
+    'Step 3 (Wrong Answer Traps) — Too broad? Only covers one half? Wrong perspective? Reverses direction?',
+    'Tip — Name the pattern: old belief flipped by turn word; partial explanation; conditional; two-part arc; ruling out alternatives; perspective question.',
+    '',
+    'CENTRAL IDEAS & DETAILS:',
+    'Step 1 (Setup) — What is the passage primarily about? Subject and main claim.',
+    'Step 2 (The Central Claim) — State the central idea. It must cover the whole passage.',
+    'Step 3 (Wrong Answer Traps) — Too narrow, too broad, or distorted.',
+    'Tip — The central idea must cover everything. If an answer only fits one sentence, it is too narrow.',
+    '',
+    'CROSS-TEXT CONNECTIONS:',
+    'Step 1 (Text 1) — What does Text 1 claim or describe?',
+    'Step 2 (Text 2 + Relationship) — What does Text 2 claim? How does it relate: supports, challenges, qualifies, extends, contrasts?',
+    'Step 3 (Wrong Answer Traps) — Wrong answers usually misstate the relationship or swap which author does what.',
+    'Tip — Pin down the exact relationship word first, then check every answer against it.',
+    '',
+    '=== RETURN THIS EXACT JSON SHAPE (nothing else) ===',
+    '{',
+    '  "questionType": "one of the 5 types",',
+    '  "subType": "brief label, e.g. Function of underlined sentence",',
+    '  "correctAnswer": "A or B or C or D",',
+    '  "step1": { "title": "short title", "description": "2 to 4 sentences", "quote": "short quote or note" },',
+    '  "step2": { "title": "short title", "description": "2 to 4 sentences", "quote": "short quote or note" },',
+    '  "step3": { "title": "short title", "description": "2 to 4 sentences on wrong answer traps", "quote": "brief note" },',
+    '  "tip": "2 to 3 sentences starting with the specific words from the passage that anchor the answer"',
+    '}',
+    '',
+    '=== QUESTION ===',
+    question
+  ].join('\n');
+
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        system: SYSTEM,
+        messages: [{ role: 'user', content: USER }]
+      })
+    });
+
+    if (!resp.ok) {
+      var errBody = await resp.json().catch(function() { return {}; });
+      var msg = (errBody.error && errBody.error.message) ? errBody.error.message : 'API error ' + resp.status;
+      if (resp.status === 401) msg = 'Invalid API key. Click the dots at the bottom to update it.';
+      if (resp.status === 429) msg = 'Rate limit reached. Wait a moment and try again.';
+      throw new Error(msg);
+    }
+
+    var json = await resp.json();
+    var raw  = json.content[0].text;
+
+    var data = robustParse(raw);
+    currentData = data;
+    renderOutput(data);
+
+  } catch (err) {
+    document.getElementById('errorBox').textContent = err.message || 'Something went wrong. Please try again.';
+    document.getElementById('errorBox').classList.add('active');
+  } finally {
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('generateBtn').disabled = false;
+  }
+}
+
+// ── Robust JSON parser ────────────────────────────────────────────────────────
+function robustParse(raw) {
+  // 1. Strip markdown fences
+  var s = raw.trim()
+    .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  // 2. Try straight parse
+  try { return JSON.parse(s); } catch(e) {}
+
+  // 3. Extract first {...} block
+  var m = s.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch(e) {} }
+
+  // 4. Light repair: remove trailing commas, fix smart quotes
+  var repaired = s
+    .replace(/[‘’]/g, "'")   // smart single quotes → straight
+    .replace(/[“”]/g, '"')   // smart double quotes → straight
+    .replace(/,\s*([}\]])/g, '$1');    // trailing commas
+
+  try { return JSON.parse(repaired); } catch(e) {}
+
+  var m2 = repaired.match(/\{[\s\S]*\}/);
+  if (m2) { try { return JSON.parse(m2[0]); } catch(e) {} }
+
+  throw new Error('Could not parse AI response. Please try again.');
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderOutput(data) {
+  document.getElementById('typeLabel').textContent    = data.questionType || '';
+  document.getElementById('subTypeLabel').textContent = data.subType || '';
+
+  // Render choices parsed from the pasted text
+  var list = document.getElementById('choicesList');
+  list.innerHTML = '';
+  var choicesToShow = parsedChoices.length ? parsedChoices : [
+    {letter:'A',text:'(could not parse — check formatting)'},{letter:'B',text:''},{letter:'C',text:''},{letter:'D',text:''}
+  ];
+  choicesToShow.forEach(function(c) {
+    var li = document.createElement('li');
+    li.id  = 'choice-' + c.letter;
+    li.innerHTML = '<span class="choice-letter">' + c.letter + ')</span><span>' + esc(c.text) + '</span>';
+    list.appendChild(li);
+  });
+
+  // Reset state
+  answered = false; breakdownOpen = false;
+  document.getElementById('revealBtn').style.display    = 'inline-block';
+  document.getElementById('breakdownBtn').textContent   = 'Show Breakdown ▼';
+  document.getElementById('breakdownArea').classList.remove('active');
+
+  // Breakdown cards
+  var steps = [
+    { d: data.step1, number: 'Step 1', cls: 's1-card' },
+    { d: data.step2, number: 'Step 2', cls: 's2-card' },
+    { d: data.step3, number: 'Step 3', cls: 's3-card' }
+  ];
+  var cont = document.getElementById('sectionsContainer');
+  cont.innerHTML = '';
+  steps.forEach(function(s) {
+    if (!s.d) return;
+    var card = document.createElement('div');
+    card.className = 'section-card ' + s.cls;
+    card.innerHTML =
+      '<div class="section-number">' + s.number + '</div>' +
+      '<div class="section-name">'   + esc(s.d.title || '')       + '</div>' +
+      '<div class="section-desc">'   + esc(s.d.description || '') + '</div>' +
+      (s.d.quote ? '<div class="section-quote">' + esc(s.d.quote) + '</div>' : '');
+    cont.appendChild(card);
+  });
+
+  document.getElementById('tipContent').textContent = data.tip || '';
+  document.getElementById('output').classList.add('active');
+  document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Reveal answer ─────────────────────────────────────────────────────────────
+function revealAnswer() {
+  if (!currentData || answered) return;
+  answered = true;
+  var correct = (currentData.correctAnswer || '').toUpperCase().trim();
+  parsedChoices.forEach(function(c) {
+    var li = document.getElementById('choice-' + c.letter);
+    if (!li) return;
+    li.classList.add(c.letter === correct ? 'correct' : 'incorrect');
+  });
+  document.getElementById('revealBtn').style.display = 'none';
+}
+
+// ── Breakdown toggle ──────────────────────────────────────────────────────────
+function toggleBreakdown() {
+  breakdownOpen = !breakdownOpen;
+  document.getElementById('breakdownArea').classList.toggle('active', breakdownOpen);
+  document.getElementById('breakdownBtn').textContent = breakdownOpen ? 'Hide Breakdown ▲' : 'Show Breakdown ▼';
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function resetTool() {
+  currentData = null; parsedChoices = []; answered = false; breakdownOpen = false;
+  document.getElementById('output').classList.remove('active');
+  document.getElementById('errorBox').classList.remove('active');
+  document.getElementById('questionInput').value = '';
+  document.getElementById('questionInput').focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(str) {
+  var d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !document.getElementById('generateBtn').disabled) {
+    generateBreakdown();
+  }
+});
+document.getElementById('apiKeyInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') saveKey();
+});
+</script>
+</body>
+</html>
